@@ -1,0 +1,8 @@
+{
+  "remote": "https://doc.caiwen.work",
+  "token": "do-you-like-this-token?",
+  "watermark": true,
+  "devTools": true,
+  "updateCycle": 30,
+  "pdfTools": "app.exe"
+}

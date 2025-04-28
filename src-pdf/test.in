@@ -1,0 +1,11 @@
+PACK
+../font.ttf
+../data/tmp
+CLOSE_WATERMARK
+../test.pdf
+double
+5
+测试试卷
+8
+114514
+END
