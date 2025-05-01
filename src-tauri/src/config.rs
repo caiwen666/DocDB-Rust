@@ -25,7 +25,7 @@ pub struct Config {
     pub token: String,
     pub watermark: bool,
     pub dev_tools: bool,
-    pub update_cycle: bool,
+    pub update_cycle: u32,
     pub pdf_tools: String,
 }
 

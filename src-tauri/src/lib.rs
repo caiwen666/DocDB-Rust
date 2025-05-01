@@ -24,6 +24,7 @@ pub fn run() {
             document::fetch_document,
             document::delete_document,
             document::update_document,
+            utils::file::parse_pdf,
             api::common::open_temp_file,
             api::common::open_temp_dir,
         ])
@@ -49,6 +50,7 @@ pub fn run() {
             document::delete_document,
             document::update_document,
             document::fetch_document,
+            utils::file::parse_pdf,
             api::common::open_temp_file,
             api::common::open_temp_dir,
         ])

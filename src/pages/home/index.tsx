@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { usePageStore } from "../stores/page.ts";
-import { commands } from "../bindings.ts";
+import { usePageStore } from "@/stores/page.ts";
+import { commands } from "@/bindings.ts";
 
-export default function Home() {
+export default function Index() {
 	const [summary, setSummary] = useState([0, 0]);
 	useEffect(() => {
 		const init = async () => {

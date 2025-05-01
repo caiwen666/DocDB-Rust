@@ -15,6 +15,7 @@
     "core:window:allow-close",
     "core:menu:default",
     "core:menu:allow-new",
-    "core:menu:allow-append"
+    "core:menu:allow-append",
+    "core:event:default"
   ]
 }

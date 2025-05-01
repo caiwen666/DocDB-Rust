@@ -3,4 +3,4 @@ use specta::Type;
 use tauri_specta::Event;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type, Event)]
-pub struct ProgressEvent(isize, isize);
+pub struct ProgressEvent(pub isize, pub isize);

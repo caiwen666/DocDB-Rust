@@ -1,14 +1,16 @@
 import React from "react";
 import { create } from "zustand";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import Home from "../pages/Home";
+import Home from "@/pages/home";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import Search from "../pages/Search";
+import Search from "../pages/search";
 import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
-// import Checked from "./pages/Checked";
+// import Index from "./pages/Index";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-// import Add from "./pages/Add";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+// import Index from "./pages/Index";
+// import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import Checked from "@/pages/checked";
+import Add from "@/pages/add";
 
 // import Setting from "./pages/Setting";
 
@@ -32,18 +34,18 @@ export const Pages: Page[] = [
 		icon: SearchOutlinedIcon,
 		content: Search,
 	},
-	// {
-	// 	title: "已选中",
-	// 	id: "checked",
-	// 	icon: PlaylistAddCheckIcon,
-	// 	content: Checked,
-	// },
-	// {
-	// 	title: "添加试卷",
-	// 	id: "add",
-	// 	icon: AddOutlinedIcon,
-	// 	content: Add,
-	// },
+	{
+		title: "已选中",
+		id: "checked",
+		icon: PlaylistAddCheckIcon,
+		content: Checked,
+	},
+	{
+		title: "添加试卷",
+		id: "add",
+		icon: AddOutlinedIcon,
+		content: Add,
+	},
 	// {
 	// 	title: "设置",
 	// 	id: "setting",

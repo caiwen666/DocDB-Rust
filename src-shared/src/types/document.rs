@@ -175,3 +175,11 @@ impl From<Document> for OldDocument {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Type, Clone, Debug)]
+pub struct DocumentParseInfo {
+    pub md5: String,
+    pub path: String,
+    pub page: usize,
+    pub name: String,
+}

@@ -6,9 +6,9 @@ use regex::Regex;
 use src_shared::types::document::{Document, SelectedDocument};
 use src_shared::utils::document::format_document_name_shorter;
 use std::fs;
+use std::io::Write;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
-use tauri::async_runtime::handle;
 use tauri::AppHandle;
 use tauri_specta::Event;
 
@@ -82,7 +82,7 @@ pub fn fetch_document(
     tmp_path.push("data");
     tmp_path.push("tmp");
     let mut input = format!("PACK\n{}\n{}\n", font_path.display(), tmp_path.display());
-    let config = CONFIG.read()?;
+    let config = CONFIG.read().map_err(|_| anyhow!("读取配置文件时出错！"))?;
     if !config.watermark {
         input.push_str("CLOSE_WATERMARK\n");
     }
@@ -109,17 +109,23 @@ pub fn fetch_document(
     let mut child = Command::new(pdf_app)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .spawn()?;
-    let mut stdin = child.stdin.take()?;
+        .spawn()
+        .map_err(|_| anyhow!("启动pdf处理进程时失败！"))?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or(anyhow!("获取pdf处理进程输入管道时错误！"))?;
     writeln!(stdin, "{}", input)?;
     drop(stdin);
-    let stdout = child.stdout.as_mut()?;
+    let stdout = child
+        .stdout
+        .as_mut()
+        .ok_or(anyhow!("获取pdf处理进程输出管道时错误！"))?;
     let reader = BufReader::new(stdout);
-    let mut output = String::new();
     for line in reader.lines() {
         let line = line?;
         if line.starts_with("DONE ") {
-            return Ok(String::from(line[5..]));
+            return Ok(line[5..].to_string());
         } else if line == "-1" {
             ProgressEvent(-1, -1).emit(&handle)?;
         } else {

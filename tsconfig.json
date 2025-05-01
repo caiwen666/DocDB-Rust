@@ -20,13 +20,18 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": "./",  // 设置基础路径为项目根目录
+    "paths": {
+      "@/*": ["src/*"]  // 将 @ 开头的路径映射到 src 目录
+    }
   },
   "include": [
     "src"
   ],
   "exclude": [
-    "src/bindings.ts"
+    "src/bindings.ts",
+    "vite.config.ts"
   ],
   "references": [
     {

@@ -6,6 +6,7 @@ use specta::{DataType, Generics, Type, TypeCollection};
 use std::borrow::Cow;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::num::ParseIntError;
 
 #[derive(Debug, Type)]
 pub struct CommandError {
@@ -36,8 +37,24 @@ impl From<anyhow::Error> for CommandError {
     }
 }
 
-impl From<dyn std::error::Error> for CommandError {
-    fn from(value: Box<dyn Error>) -> Self {
+impl From<std::io::Error> for CommandError {
+    fn from(value: std::io::Error) -> Self {
+        Self {
+            inner: value.into(),
+        }
+    }
+}
+
+impl From<tauri::Error> for CommandError {
+    fn from(value: tauri::Error) -> Self {
+        Self {
+            inner: value.into(),
+        }
+    }
+}
+
+impl From<ParseIntError> for CommandError {
+    fn from(value: ParseIntError) -> Self {
         Self {
             inner: value.into(),
         }

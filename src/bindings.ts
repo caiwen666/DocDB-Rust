@@ -35,7 +35,7 @@ async getDocumentByMd5(md5: string) : Promise<Document | null> {
  * 打包试卷到一个pdf
  * list 给出打包的目标和要求
  * double 为是否要打包成双面
- * 返回打包后 pdf 的路径
+ * 返回打包后 pdf 的名称
  */
 async fetchDocument(list: SelectedDocument[], double: boolean) : Promise<Result<string, CommandError>> {
     try {
@@ -63,6 +63,17 @@ async deleteDocument(md5: string) : Promise<Result<null, CommandError>> {
 async updateDocument(doc: Document) : Promise<Result<null, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_document", { doc }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * 解析 pdf 信息
+ */
+async parsePdf(paths: string[]) : Promise<Result<DocumentParseInfo[], CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("parse_pdf", { paths }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -163,6 +174,7 @@ filter: string[];
  * 标志标签
  */
 tags: string[] }
+export type DocumentParseInfo = { md5: string; path: string; page: number; name: string }
 /**
  * 试卷类型信息
  */
