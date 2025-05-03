@@ -1,0 +1,17 @@
+[server]
+host = "0.0.0.0"
+port = 15565
+
+[log]
+filter_level = "debug"
+with_ansi = true
+to_stdout = true
+directory = "./logs"
+file_prefix = "docdb"
+rolling = "daily"
+
+[service]
+token = "do-you-like-this-token?"
+
+[database]
+url = "mysql://root:z2970046657@localhost:3306/docdb"

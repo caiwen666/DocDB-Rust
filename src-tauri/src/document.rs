@@ -4,7 +4,7 @@ use crate::utils::result::{CommandError, Result};
 use anyhow::anyhow;
 use regex::Regex;
 use src_shared::types::document::{Document, SelectedDocument};
-use src_shared::utils::document::format_document_name_shorter;
+use src_shared::utils::document::DocumentNameFormatter;
 use std::fs;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
@@ -95,7 +95,11 @@ pub fn fetch_document(
                 target.display(),
                 if double { "double" } else { "single" },
                 item.count,
-                format_document_name_shorter(&item.doc),
+                DocumentNameFormatter::new(&item.doc)
+                    .show_year(true)
+                    .show_tags(true)
+                    .show_filter(true)
+                    .format(),
                 item.doc.info.page,
                 item.doc.id
             )
