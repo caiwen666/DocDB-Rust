@@ -17,7 +17,8 @@ pub fn get_router() -> Router {
     let file_router = Router::with_path("file")
         .hoop(middleware::auth_middleware)
         .push(Router::with_path("upload").post(file::upload))
-        .push(Router::with_path("download").get(file::download));
+        .push(Router::with_path("download").get(file::download))
+        .push(Router::with_path("exists").get(file::exists));
     let router = Router::new().push(document_router).push(file_router);
     router
 }

@@ -1,24 +1,14 @@
 import {
 	Button,
-	CircularProgress,
-	Dialog,
-	DialogContent,
-	DialogContentText,
-	DialogTitle,
+	CircularProgress, DialogContent
 } from "@mui/material";
-import { commands, Document } from "@/bindings";
+import { commands } from "@/bindings";
 import { useEffect, useRef, useState } from "react";
 import FileOpenOutlinedIcon from "@mui/icons-material/FileOpenOutlined";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
-import { clone, formatToString } from "@/utils";
-import { parseName, formatDocumentInfo } from "@/utils/document";
-import classNames from "classnames";
-import DocumentItem from "@/components/DocumentItem";
 import { useDialogStore } from "@/stores/dialog.ts";
 import DialogErrorTemplate from "@/components/dialog/DialogErrorTemplate";
-import DialogProgressTemplate from "@/components/dialog/DialogCircleProgressTemplate";
 import Item from "./item";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen, TauriEvent, UnlistenFn, Event } from "@tauri-apps/api/event";
 import { usePageStore } from "@/stores/page.ts";
 import {
@@ -63,7 +53,7 @@ const Index = () => {
 		setLoading(false);
 	};
 	useEffect(() => {
-		let unlisten: UnlistenFn;
+		let unlisten: UnlistenFn | null = null;
 		const init = async () => {
 			unlisten = await listen<DropEvent>(
 				TauriEvent.DRAG_DROP,
@@ -74,7 +64,7 @@ const Index = () => {
 			if (state.now === 3) {
 				init();
 			} else {
-				unlisten();
+				if (unlisten) unlisten();
 			}
 		});
 	}, []);

@@ -1,4 +1,5 @@
 mod api;
+mod client;
 mod config;
 mod database;
 mod document;
@@ -6,11 +7,12 @@ mod event;
 mod test;
 mod utils;
 
+use crate::config::check_database_update;
 use crate::event::ProgressEvent;
 use specta_typescript::BigIntExportBehavior;
 use specta_typescript::Typescript;
 use src_shared::types::bind_types;
-use tauri::Manager;
+use std::thread;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,6 +26,7 @@ pub fn run() {
             document::fetch_document,
             document::delete_document,
             document::update_document,
+            document::add_document,
             utils::file::parse_pdf,
             api::common::open_temp_file,
             api::common::open_temp_dir,
@@ -40,6 +43,8 @@ pub fn run() {
         )
         .expect("Failed to export typescript bindings!");
 
+    thread::spawn(check_database_update);
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -50,6 +55,7 @@ pub fn run() {
             document::delete_document,
             document::update_document,
             document::fetch_document,
+            document::add_document,
             utils::file::parse_pdf,
             api::common::open_temp_file,
             api::common::open_temp_dir,

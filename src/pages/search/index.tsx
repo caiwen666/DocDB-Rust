@@ -310,6 +310,7 @@ function Index() {
 		setContextMenu(null);
 		const state = useSelectedStore.getState();
 		await editDocument(state.selected[0].doc);
+		handleSearch(false);
 	};
 	const contextFetchAction = async () => {
 		setContextMenu(null);

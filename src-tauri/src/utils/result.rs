@@ -1,10 +1,5 @@
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
-use specta::datatype::reference::Reference;
-use specta::datatype::StructType;
-use specta::{DataType, Generics, Type, TypeCollection};
-use std::borrow::Cow;
-use std::error::Error;
+use serde::Serialize;
+use specta::Type;
 use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseIntError;
 

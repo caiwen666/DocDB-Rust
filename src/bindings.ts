@@ -58,11 +58,18 @@ async deleteDocument(md5: string) : Promise<Result<null, CommandError>> {
 },
 /**
  * 更新试卷
- * 存在则更新，不存在则添加
  */
 async updateDocument(doc: Document) : Promise<Result<null, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_document", { doc }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async addDocument(doc: Document) : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_document", { doc }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

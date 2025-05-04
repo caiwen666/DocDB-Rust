@@ -1,7 +1,7 @@
 use crate::database;
+use crate::database::update_database;
 use serde::{Deserialize, Serialize};
 use src_shared::types::document::Document;
-use src_shared::utils::database::load_data;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{LazyLock, RwLock};
@@ -35,7 +35,7 @@ pub static DATABASE: LazyLock<RwLock<Database>> = LazyLock::new(|| {
     path.push("data.json");
     let data =
         fs::read_to_string(path).expect("Initialize the database failed. Cannot read data.json.");
-    let data = load_data(data).unwrap();
+    let data = serde_json::from_str(data.as_str()).unwrap();
     let mut database = Database {
         data,
         index: HashMap::new(),
@@ -47,7 +47,7 @@ pub static DATABASE: LazyLock<RwLock<Database>> = LazyLock::new(|| {
 
 pub static CWD: LazyLock<PathBuf> = LazyLock::new(|| {
     #[cfg(debug_assertions)]
-    let cwd = PathBuf::from(env::current_dir().unwrap().parent().unwrap());
+    let cwd = PathBuf::from(env::current_dir().unwrap());
 
     #[cfg(not(debug_assertions))]
     let cwd = PathBuf::from(env::current_dir().unwrap());
@@ -84,3 +84,15 @@ pub static CONFIG: LazyLock<RwLock<Config>> = LazyLock::new(|| {
     let config: Config = serde_json::from_str(data.as_str()).expect("Cannot parse config.json");
     RwLock::new(config)
 });
+
+pub fn check_database_update() {
+    loop {
+        let res = update_database();
+        if res.is_err() {
+            eprintln!("{:?}", res);
+        }
+        std::thread::sleep(std::time::Duration::from_secs(
+            CONFIG.read().unwrap().update_cycle as u64,
+        ));
+    }
+}

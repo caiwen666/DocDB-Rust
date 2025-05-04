@@ -1,5 +1,5 @@
 {
-  "remote": "https://doc.caiwen.work",
+  "remote": "http://127.0.0.1:15565",
   "token": "do-you-like-this-token?",
   "watermark": true,
   "devTools": true,

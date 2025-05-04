@@ -1,2 +1,2 @@
 [workspace]
-members = [ "src-server","src-shared","src-tauri"]
+members = [ "src-server","src-shared","src-tauri", "src-tools"]

@@ -1,0 +1,11 @@
+[package]
+name = "src-tools"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.37", features = ["derive"] }
+regex = "1.11.1"
+walkdir = "2.5.0"
+src-shared = { path = "../src-shared" }
+serde_json = "1.0.140"

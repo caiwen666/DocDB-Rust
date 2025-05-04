@@ -1,5 +1,6 @@
 use crate::config::UPLOADED_FILE_PATH;
 use crate::result::{AppResult, Success};
+use crate::service::file::is_file_exists;
 use crate::utils::async_func;
 use anyhow::anyhow;
 use salvo::fs::NamedFile;
@@ -43,4 +44,12 @@ pub async fn download(req: &mut Request, res: &mut Response) {
         Ok(_) => (),
         Err(e) => res.render(e),
     };
+}
+
+#[handler]
+pub async fn exists(req: &mut Request) -> AppResult {
+    let md5 = req
+        .query::<String>("md5")
+        .ok_or(anyhow!("The md5 of the file is required"))?;
+    Ok(Success::from(is_file_exists(md5.as_str()).await))
 }

@@ -6,7 +6,7 @@ use crate::service::document::{
 use crate::service::file::is_file_exists;
 use anyhow::anyhow;
 use salvo::handler;
-use salvo::{oapi::extract::JsonBody, prelude::*};
+use salvo::prelude::*;
 use serde_json::json;
 use src_shared::types::document::Document;
 use src_shared::utils::document::DocumentNameFormatter;

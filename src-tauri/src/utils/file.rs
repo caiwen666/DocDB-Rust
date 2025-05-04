@@ -1,11 +1,12 @@
 use crate::config::{CWD, DATABASE};
 use crate::utils::result::{CommandError, Result};
 use anyhow::anyhow;
+use md5::{Digest, Md5};
 use src_shared::types::document::DocumentParseInfo;
 use src_shared::utils::file::compute_md5;
 use std::fs;
 use std::io::Write;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -75,4 +76,11 @@ pub fn parse_pdf(paths: Vec<String>) -> Result<Vec<DocumentParseInfo>> {
         res[index].page = line.parse()?;
     }
     Ok(res)
+}
+
+pub fn compute_str_md5(s: &str) -> String {
+    let mut hasher = Md5::new();
+    hasher.update(s.as_bytes());
+    let result = hasher.finalize();
+    format!("{:x}", result)
 }

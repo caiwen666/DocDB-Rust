@@ -1,11 +1,12 @@
+use crate::client::{client_get, client_post, client_post_file};
 use crate::config::{CONFIG, CWD, DATABASE};
+use crate::database::update_database;
 use crate::event::ProgressEvent;
 use crate::utils::result::{CommandError, Result};
 use anyhow::anyhow;
 use regex::Regex;
 use src_shared::types::document::{Document, SelectedDocument};
 use src_shared::utils::document::DocumentNameFormatter;
-use std::fs;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
@@ -148,14 +149,33 @@ pub fn fetch_document(
 #[tauri::command]
 #[specta::specta]
 pub fn delete_document(md5: String) -> Result<()> {
+    client_get::<Document>(format!("/document/delete?md5={}", md5).as_str())?;
+    update_database()?;
     Ok(())
 }
 
 /// 更新试卷
-/// 存在则更新，不存在则添加
 #[tauri::command]
 #[specta::specta]
 pub fn update_document(doc: Document) -> Result<()> {
-    println!("{:#?}", doc);
+    let _unused: Document = client_post("/document/update", &doc)?;
+    update_database()?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn add_document(doc: Document) -> Result<()> {
+    // 检查是否提交了文件
+    if !client_get::<bool>(format!("/file/exists?md5={}", doc.md5).as_str())? {
+        // 提交文件
+        let mut file_path = CWD.clone();
+        file_path.push("data");
+        file_path.push("files");
+        file_path.push(format!("{}.pdf", doc.md5));
+        client_post_file("/file/upload", &file_path)?;
+    }
+    let _unused: Document = client_post("/document/add", &doc)?;
+    update_database()?;
     Ok(())
 }

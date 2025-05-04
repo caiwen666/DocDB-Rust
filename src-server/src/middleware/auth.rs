@@ -1,5 +1,5 @@
 use crate::config::CONFIG;
-use crate::result::{AppError, AppResult, Success};
+use crate::result::{AppError, Success};
 use crate::utils::async_func;
 use salvo::{Depot, FlowCtrl, Request, Response, handler};
 

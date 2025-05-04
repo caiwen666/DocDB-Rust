@@ -1,11 +1,11 @@
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
+use crate::types::document::{DocumentInfo, OldDocumentInfo};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use crate::types::document::{DocumentInfo, OldDocumentInfo};
 
 mod datetime_format {
     use chrono::{DateTime, Local, TimeZone};
-    use serde::{Serializer, Deserializer, Deserialize};
+    use serde::{Deserialize, Deserializer, Serializer};
 
     const FORMAT: &str = "%Y-%m-%d %H:%M:%S"; // 年-月-日 时:分:秒
 
@@ -44,7 +44,7 @@ pub struct RecordInfo {
     #[serde(rename = "documentID")]
     pub document_id: usize,
     /// 操作文件的 md5
-    pub md5: String
+    pub md5: String,
 }
 
 #[derive(Serialize, Deserialize, Type, Clone)]
@@ -56,20 +56,20 @@ pub enum Record {
         /// 操作记录信息
         info: RecordInfo,
         /// 添加的试卷信息
-        target: DocumentInfo
+        target: DocumentInfo,
     },
     /// 修改操作
     ModifyRecord {
         /// 操作记录信息
         info: RecordInfo,
         /// 新的试卷信息
-        target: DocumentInfo
+        target: DocumentInfo,
     },
     /// 删除操作
     DeleteRecord {
         /// 操作记录信息
         info: RecordInfo,
-    }
+    },
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OldRecord {
@@ -86,53 +86,60 @@ impl From<OldRecord> for Record {
         let record_debug = format!("{:#?}", value);
         let record_info = RecordInfo {
             id: value.id,
-            time: Local.from_local_datetime(
-                &NaiveDateTime::parse_from_str(
-                    value.time.as_str(),
-                    "%Y-%m-%d %H:%M:%S"
-                ).expect(format!(
-                    "Failed to convert {} to Record. Cannot parse time {}",
-                    record_debug,
-                    value.time
-                ).as_str())
-            ).unwrap(),
+            time: Local
+                .from_local_datetime(
+                    &NaiveDateTime::parse_from_str(value.time.as_str(), "%Y-%m-%d %H:%M:%S")
+                        .expect(
+                            format!(
+                                "Failed to convert {} to Record. Cannot parse time {}",
+                                record_debug, value.time
+                            )
+                            .as_str(),
+                        ),
+                )
+                .unwrap(),
             document_id: value.document_id,
             md5: value.file,
         };
         match value.operation.as_str() {
-            "create" => {
-                Self::AddRecord {
-                    info: record_info,
-                    target: value.info.expect(format!(
-                        "Failed to convert {} to Record. Expected document info.",
-                        record_debug
-                    ).as_str()).into(),
-                }
-            }
-            "modify" => {
-                Self::ModifyRecord {
-                    info: record_info,
-                    target: value.info.expect(format!(
-                        "Failed to convert {} to Record. Expected document info.",
-                        record_debug
-                    ).as_str()).into(),
-                }
-            }
-            "delete" => {
-                Self::DeleteRecord {
-                    info: record_info,
-                }
-            }
-            typ => panic!("Failed to convert {} to Record. Unrecognized operation type {}.", record_debug, typ)
+            "create" => Self::AddRecord {
+                info: record_info,
+                target: value
+                    .info
+                    .expect(
+                        format!(
+                            "Failed to convert {} to Record. Expected document info.",
+                            record_debug
+                        )
+                        .as_str(),
+                    )
+                    .into(),
+            },
+            "modify" => Self::ModifyRecord {
+                info: record_info,
+                target: value
+                    .info
+                    .expect(
+                        format!(
+                            "Failed to convert {} to Record. Expected document info.",
+                            record_debug
+                        )
+                        .as_str(),
+                    )
+                    .into(),
+            },
+            "delete" => Self::DeleteRecord { info: record_info },
+            typ => panic!(
+                "Failed to convert {} to Record. Unrecognized operation type {}.",
+                record_debug, typ
+            ),
         }
     }
 }
 impl From<Record> for OldRecord {
     fn from(value: Record) -> Self {
         match value {
-            Record::AddRecord {info, target}
-            | Record::ModifyRecord {info, target}
-            => Self {
+            Record::AddRecord { info, target } | Record::ModifyRecord { info, target } => Self {
                 id: info.id,
                 time: info.time.format("%Y-%m-%d %H:%M:%S").to_string(),
                 document_id: info.document_id,
@@ -140,14 +147,14 @@ impl From<Record> for OldRecord {
                 operation: "create".to_string(),
                 info: Some(target.into()),
             },
-            Record::DeleteRecord {info} => Self {
+            Record::DeleteRecord { info } => Self {
                 id: info.id,
                 time: info.time.format("%Y-%m-%d %H:%M:%S").to_string(),
                 document_id: info.document_id,
                 file: info.md5,
                 operation: "create".to_string(),
                 info: None,
-            }
+            },
         }
     }
 }

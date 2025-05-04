@@ -22,7 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-!/bin/
-!/test.pdf
-!/test.in
-!/src-pdf/app.exe
+/data/
+/src-server/data/
+/bin/
+/target/
+/src-pdf/app.exe
+test.in
+test.pdf
