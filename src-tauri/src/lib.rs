@@ -27,9 +27,12 @@ pub fn run() {
             document::delete_document,
             document::update_document,
             document::add_document,
+            document::touch_document,
             utils::file::parse_pdf,
             api::common::open_temp_file,
             api::common::open_temp_dir,
+            api::ui::set_progress,
+            database::update_database,
         ])
         .events(collect_events![ProgressEvent]);
 
@@ -39,7 +42,7 @@ pub fn run() {
     builder
         .export(
             Typescript::default().bigint(BigIntExportBehavior::Number),
-            "../src/bindings.ts",
+            "./src/bindings.ts",
         )
         .expect("Failed to export typescript bindings!");
 
@@ -56,9 +59,12 @@ pub fn run() {
             document::update_document,
             document::fetch_document,
             document::add_document,
+            document::touch_document,
             utils::file::parse_pdf,
             api::common::open_temp_file,
             api::common::open_temp_dir,
+            api::ui::set_progress,
+            database::update_database,
         ])
         .setup(move |app| {
             builder.mount_events(app);

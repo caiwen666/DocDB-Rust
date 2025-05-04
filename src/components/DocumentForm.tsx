@@ -51,7 +51,9 @@ function DocumentForm({
 	const [type, setType] = useState(form.type);
 	const [year, setYear] = useState(form.date ? form.date.year.toString() : "");
 	const [yearType, setYearType] = useState(form.date ? form.date.type : "Year");
-	const [identifier, setIdentifier] = useState(form.identifier);
+	const [identifier, setIdentifier] = useState(
+		form.identifier ? form.identifier : "",
+	);
 	const [answer, setAnswer] = useState(form.answer);
 	//add tag form
 	const [addTagDialog, setAddTagDialog] = useState(false);
@@ -121,7 +123,7 @@ function DocumentForm({
 	}, [name, year]);
 	useEffect(() => {
 		formRef.current.type = type;
-		formRef.current.identifier = identifier;
+		formRef.current.identifier = identifier.length === 0 ? null : identifier;
 		formRef.current.answer = answer;
 		if (formRef.current.date) formRef.current.date.type = yearType;
 		onChange(formRef.current);

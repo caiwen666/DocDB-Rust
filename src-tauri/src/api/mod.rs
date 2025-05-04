@@ -1,2 +1,2 @@
 pub mod common;
-pub mod window;
+pub mod ui;

@@ -14,7 +14,7 @@ export const parseToDocument = (info: DocumentParseInfo): DocumentFromFile => {
 	const res: DocumentFromFile = {
 		name: info.name,
 		doc: {
-			id: -1,
+			id: 0,
 			md5: info.md5,
 			info: {
 				name: "",

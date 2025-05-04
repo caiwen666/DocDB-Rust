@@ -67,9 +67,24 @@ async updateDocument(doc: Document) : Promise<Result<null, CommandError>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * 试卷添加之后需要手动调用 update_database
+ */
 async addDocument(doc: Document) : Promise<Result<null, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_document", { doc }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * 这个函数会先判断本地是否存在了这个试卷对应的文件
+ * 如果不存在，则会从服务器上下载
+ */
+async touchDocument(md5: string) : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("touch_document", { md5 }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -98,6 +113,20 @@ async openTempFile(target: string) : Promise<void> {
  */
 async openTempDir() : Promise<void> {
     await TAURI_INVOKE("open_temp_dir");
+},
+async setProgress(p: [number, number]) : Promise<void> {
+    await TAURI_INVOKE("set_progress", { p });
+},
+/**
+ * 更新数据库
+ */
+async updateDatabase() : Promise<Result<boolean, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_database") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

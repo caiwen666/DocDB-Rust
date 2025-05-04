@@ -73,7 +73,7 @@ const Index = () => {
 						className={"ml-auto self-center"}
 						startIcon={<FileDownloadOutlinedIcon />}
 						disabled={selectedStore.selected.length === 0}
-						onClick={() => fetchDocument(selectedStore.selected, double)}
+						onClick={() => fetchDocument(double)}
 					>
 						取回
 					</Button>

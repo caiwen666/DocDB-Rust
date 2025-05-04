@@ -37,6 +37,7 @@ export default [
       ecmaVersion: 'latest',
     },
     rules: {
+      eqeqeq: ['error', 'always'],
       // 这里可以添加你自己定义的规则，如需迁移之前的自定义规则，可加在此处
     },
     files: ['src/*.{ts,tsx,js,jsx}'],

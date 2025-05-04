@@ -37,6 +37,8 @@ import {
 	clearSelected,
 	editDocument,
 	fetchDocument,
+	formatDocumentInfo,
+	openDocument,
 } from "@/utils/document.tsx";
 import { clone } from "@/utils";
 
@@ -310,6 +312,7 @@ function Index() {
 		setContextMenu(null);
 		const state = useSelectedStore.getState();
 		await editDocument(state.selected[0].doc);
+		useSelectedStore.setState({ selected: [] });
 		handleSearch(false);
 	};
 	const contextFetchAction = async () => {
@@ -333,6 +336,12 @@ function Index() {
 							</span>
 							<span className={"ml-1"}>元</span>
 						</div>
+						<DialogContentText className="mt-2">取回文件：</DialogContentText>
+						{selected.map((item) => (
+							<div>
+								{"[" + item.doc.id + "]" + formatDocumentInfo(item.doc.info)}
+							</div>
+						))}
 					</DialogContent>
 				),
 				buttons: ["取消", "继续"],
@@ -340,7 +349,8 @@ function Index() {
 			});
 		});
 		if (op === "继续") {
-			await fetchDocument(selected, true);
+			useSelectedStore.setState({ selected });
+			await fetchDocument(true);
 			clearSelected();
 		}
 	};
@@ -419,7 +429,7 @@ function Index() {
 											) != undefined;
 										return (
 											<DocumentItem
-												info={item.info}
+												doc={item}
 												onSelect={() => {
 													if (selected) {
 														selectedStore.remove(item.md5);
@@ -429,8 +439,7 @@ function Index() {
 												}}
 												key={item.md5}
 												selected={selected}
-												onDoubleClick={() => commands.openDocument(item.md5)}
-												id={item.id}
+												onDoubleClick={() => openDocument(item.md5)}
 											/>
 										);
 									})}

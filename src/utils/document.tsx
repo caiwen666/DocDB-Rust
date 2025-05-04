@@ -24,13 +24,11 @@ export const clearSelected = () => {
 /**
  * 取回选中文件
  */
-export const fetchDocument = async (
-	list: SelectedDocument[],
-	double: boolean,
-) => {
+export const fetchDocument = async (double: boolean) => {
 	const dialogStore = useDialogStore.getState();
 	const normalTarget = [];
 	const colorTarget = [];
+	const list = clone(useSelectedStore.getState().selected);
 	for (const item of list) {
 		if (item.color) colorTarget.push(item);
 		else normalTarget.push(item);
@@ -124,6 +122,7 @@ export const fetchDocument = async (
 				callback,
 			});
 		}
+		useSelectedStore.setState({ selected: [] });
 	} catch (e) {
 		dialogStore.closeWaitingDialog();
 		dialogStore.push({
@@ -328,4 +327,34 @@ export const editDocument = async (target: Document) => {
 		}
 		// onRefresh();
 	}
+};
+
+export const openDocument = async (md5: string) => {
+	const dialog = useDialogStore.getState();
+	dialog.pushWaitingDialog({
+		title: "打开试卷",
+		content: (
+			<DialogContent>
+				<DialogProgressTemplate
+					info={"正在打开试卷..."}
+					total={-1}
+					ok={-1}
+				></DialogProgressTemplate>
+			</DialogContent>
+		),
+	});
+	try {
+		unwrap(await commands.touchDocument(md5));
+		await commands.openDocument(md5);
+	} catch (e) {
+		dialog.push({
+			title: "错误",
+			content: (
+				<DialogContent>
+					<DialogErrorTemplate info={"打开试卷时发生错误"} error={e} />
+				</DialogContent>
+			),
+		});
+	}
+	dialog.closeWaitingDialog();
 };

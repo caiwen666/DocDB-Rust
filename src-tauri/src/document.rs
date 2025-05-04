@@ -1,10 +1,12 @@
-use crate::client::{client_get, client_post, client_post_file};
+use crate::client::{client_get, client_post, client_post_file, CLIENT};
 use crate::config::{CONFIG, CWD, DATABASE};
 use crate::database::update_database;
 use crate::event::ProgressEvent;
 use crate::utils::result::{CommandError, Result};
 use anyhow::anyhow;
 use regex::Regex;
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::StatusCode;
 use src_shared::types::document::{Document, SelectedDocument};
 use src_shared::utils::document::DocumentNameFormatter;
 use std::io::Write;
@@ -74,6 +76,15 @@ pub fn fetch_document(
     list: Vec<SelectedDocument>,
     double: bool,
 ) -> Result<String> {
+    // 先检查是否有文件需要下载
+    let mut ok = 0;
+    ProgressEvent(ok, list.len() as isize).emit(&handle)?;
+    for item in &list {
+        touch_document(item.doc.md5.as_str())?;
+        ok += 1;
+        ProgressEvent(ok, list.len() as isize).emit(&handle)?;
+    }
+    ProgressEvent(-1, -1).emit(&handle)?;
     let mut file_path = CWD.clone();
     file_path.push("data");
     file_path.push("files");
@@ -163,6 +174,7 @@ pub fn update_document(doc: Document) -> Result<()> {
     Ok(())
 }
 
+/// 试卷添加之后需要手动调用 update_database
 #[tauri::command]
 #[specta::specta]
 pub fn add_document(doc: Document) -> Result<()> {
@@ -176,6 +188,49 @@ pub fn add_document(doc: Document) -> Result<()> {
         client_post_file("/file/upload", &file_path)?;
     }
     let _unused: Document = client_post("/document/add", &doc)?;
-    update_database()?;
+    Ok(())
+}
+
+/// 这个函数会先判断本地是否存在了这个试卷对应的文件
+/// 如果不存在，则会从服务器上下载
+#[tauri::command]
+#[specta::specta]
+pub fn touch_document(md5: &str) -> Result<()> {
+    let mut file_path = CWD.clone();
+    file_path.push("data");
+    file_path.push("files");
+    file_path.push(format!("{}.pdf", md5));
+    if file_path.exists() {
+        return Ok(());
+    }
+    let config = CONFIG
+        .read()
+        .map_err(|e| anyhow!("获取配置信息时出错：{}", e))?;
+    let remote = config.remote.clone();
+    let token = config.token.clone();
+    drop(config);
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(token.as_str()).map_err(|e| anyhow!("token无效：{}", e))?,
+    );
+    let rep = CLIENT
+        .get(format!("{}/file/download?md5={}", remote, md5))
+        .headers(headers)
+        .send()
+        .map_err(|e| anyhow!("请求服务器时出错：{}", e))?;
+    if rep.status() != StatusCode::OK {
+        return Err(CommandError::from(anyhow!(
+            "请求服务器失败：{:?}",
+            rep.status()
+        )));
+    }
+    let data = rep
+        .bytes()
+        .map_err(|e| anyhow!("解析服务器返回时出错：{}", e))?;
+    let mut file =
+        std::fs::File::create(file_path).map_err(|e| anyhow!("创建文件时出错：{}", e))?;
+    file.write_all(data.as_ref())
+        .map_err(|e| anyhow!("写入文件时出错：{}", e))?;
     Ok(())
 }
