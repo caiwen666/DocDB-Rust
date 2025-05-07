@@ -12,6 +12,16 @@ use src_shared::types::document::Document;
 use src_shared::utils::document::DocumentNameFormatter;
 use tracing::log::info;
 
+/// 让 document 更加标准
+fn standard_document(mut doc: Document) -> Document {
+    if let Some(v) = &doc.info.identifier {
+        if v.is_empty() {
+            doc.info.identifier = None;
+        }
+    }
+    doc
+}
+
 #[handler]
 pub async fn index() -> AppResult {
     let the_inner_db = inner_db().await.read().await;
@@ -27,7 +37,7 @@ pub async fn add(req: &mut Request) -> AppResult {
     if is_document_exists(doc.md5.as_str()).await {
         return Err(anyhow!("Already have the same document!").into());
     }
-    let doc = insert_document(doc).await?;
+    let doc = insert_document(standard_document(doc)).await?;
     info!(
         "成功添加试卷\n+ {}",
         DocumentNameFormatter::new(&doc).show_all().format()
@@ -57,6 +67,7 @@ pub async fn update(req: &mut Request) -> AppResult {
     if !is_document_exists(doc.md5.as_str()).await {
         return Err(anyhow!("Document not found!").into());
     }
+    let doc = standard_document(doc);
     let old_doc = get_document_by_md5(doc.md5.as_str()).await.unwrap();
     update_document(&doc).await?;
     info!(

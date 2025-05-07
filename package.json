@@ -17,6 +17,7 @@
     "@react-spring/web": "^9.7.5",
     "@tailwindcss/vite": "^4.1.4",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-opener": "^2",
     "autoprefixer": "^10.4.21",
     "classnames": "^2.5.1",

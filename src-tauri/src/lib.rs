@@ -38,6 +38,7 @@ pub fn run() {
             api::config::set_server_info,
             database::update_database,
             database::hot_cache,
+            database::export_database,
         ])
         .events(collect_events![ProgressEvent]);
 
@@ -52,6 +53,7 @@ pub fn run() {
         .expect("Failed to export typescript bindings!");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             database::get_database_summary,
@@ -73,6 +75,7 @@ pub fn run() {
             api::config::set_server_info,
             database::update_database,
             database::hot_cache,
+            database::export_database,
         ])
         .setup(move |app| {
             builder.mount_events(app);

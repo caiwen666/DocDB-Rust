@@ -23,6 +23,7 @@ import DialogProgressTemplate from "@/components/dialog/DialogCircleProgressTemp
 import { unwrap } from "@/utils/result";
 import DialogErrorTemplate from "@/components/dialog/DialogErrorTemplate";
 import DialogBarProgressTemplate from "@/components/dialog/DialogBarProgressTemplate";
+import { open } from "@tauri-apps/plugin-dialog";
 
 interface ServerInfoForm {
 	remote: string;
@@ -86,6 +87,21 @@ export default function Setting() {
 		}
 	};
 	const handleHotCache = async () => {
+		const op = await new Promise((resolve) => {
+			pushDialog({
+				title: "缓存预热",
+				content: (
+					<DialogContent>
+						<DialogContentText>
+							缓存预热可能会耗费较长时间，在这期间 DocDB 将不可用，是否继续？
+						</DialogContentText>
+					</DialogContent>
+				),
+				buttons: ["取消", "继续"],
+				callback: resolve,
+			});
+		});
+		if (op == "取消") return;
 		pushWaitingDialog({
 			title: "缓存预热",
 			content: (
@@ -124,6 +140,60 @@ export default function Setting() {
 			setEnableWatermark(enableWatermarkRef.current);
 		});
 	}, []);
+	const handleExport = async () => {
+		const target = await open({
+			multiple: false,
+			directory: true,
+			title: "选择导出目录",
+		});
+		if (target == null) return;
+		const op = await new Promise((resolve) => {
+			pushDialog({
+				title: "导出目录结构",
+				content: (
+					<DialogContent>
+						<DialogContentText>
+							导出目录结构可能会耗费较长时间，在这期间 DocDB
+							将不可用，是否继续？
+						</DialogContentText>
+					</DialogContent>
+				),
+				buttons: ["取消", "继续"],
+				callback: resolve,
+			});
+		});
+		if (op == "取消") return;
+		pushWaitingDialog({
+			title: "导出目录结构",
+			content: (
+				<DialogContent>
+					<DialogBarProgressTemplate info={"正在导出目录结构..."} />
+				</DialogContent>
+			),
+		});
+		try {
+			unwrap(await commands.exportDatabase(target));
+			closeWaitingDialog();
+			pushDialog({
+				title: "成功",
+				content: (
+					<DialogContent>
+						<DialogContentText>导出目录结构完成！</DialogContentText>
+					</DialogContent>
+				),
+			});
+		} catch (e) {
+			closeWaitingDialog();
+			pushDialog({
+				title: "错误",
+				content: (
+					<DialogContent>
+						<DialogErrorTemplate info={"导出目录结构时出错"} error={e} />
+					</DialogContent>
+				),
+			});
+		}
+	};
 	return (
 		<div>
 			<div className={"rounded overflow-hidden"}>
@@ -160,7 +230,7 @@ export default function Setting() {
 						</div>
 					</div>
 					<div className={"ml-auto"}>
-						<Button>执行</Button>
+						<Button onClick={handleExport}>执行</Button>
 					</div>
 				</div>
 			</div>

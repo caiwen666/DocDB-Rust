@@ -11,7 +11,7 @@ pub enum DocumentDate {
     Grade(u16),
 }
 
-#[derive(Serialize, Deserialize, Type, Clone, Debug)]
+#[derive(Serialize, Deserialize, Type, Clone, Debug, PartialEq)]
 /// 试卷类型信息
 pub enum DocumentType {
     /// 期末考试

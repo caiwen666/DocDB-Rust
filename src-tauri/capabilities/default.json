@@ -16,6 +16,7 @@
     "core:menu:default",
     "core:menu:allow-new",
     "core:menu:allow-append",
-    "core:event:default"
+    "core:event:default",
+    "dialog:default"
   ]
 }

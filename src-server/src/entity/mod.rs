@@ -11,7 +11,14 @@ impl From<tb_document::Model> for Document {
             md5: value.md5,
             info: DocumentInfo {
                 name: value.name,
-                identifier: value.identifier,
+                identifier: match value.identifier {
+                    // 空字符串就应该视为 None
+                    Some(v) => match v.as_str() {
+                        "" => None,
+                        _ => Some(v),
+                    },
+                    None => None,
+                },
                 date: match value.year_type {
                     Some(year_type) => match year_type.as_str() {
                         "Grade" => Some(DocumentDate::Grade(
