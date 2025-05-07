@@ -1,24 +1,23 @@
-use crate::client::{client_get, client_post, client_post_file, CLIENT};
-use crate::config::{CONFIG, CWD, DATABASE};
+use crate::client::{request, request_json};
+use crate::config::{config, db, Cwd};
 use crate::database::update_database;
 use crate::event::ProgressEvent;
 use crate::utils::result::{CommandError, Result};
 use anyhow::anyhow;
 use regex::Regex;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
-use reqwest::StatusCode;
+use reqwest::{multipart, Method};
 use src_shared::types::document::{Document, SelectedDocument};
 use src_shared::utils::document::DocumentNameFormatter;
-use std::io::Write;
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use tauri::AppHandle;
 use tauri_specta::Event;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::Command;
 
 #[tauri::command]
 #[specta::specta]
 /// 按关键字搜索试卷
-pub fn search_document(keyword: String) -> Vec<Document> {
+pub async fn search_document(keyword: String) -> Vec<Document> {
     let pattern = keyword.split("").collect::<Vec<&str>>().join(".*");
     let re = Regex::new(pattern.as_str());
     if re.is_err() {
@@ -26,7 +25,7 @@ pub fn search_document(keyword: String) -> Vec<Document> {
     }
     let re = re.unwrap();
     let mut result = vec![];
-    let database = DATABASE.read().unwrap();
+    let database = db().await.read().await;
     for (name, docs) in &database.name_index {
         if re.is_match(name.as_str()) {
             for doc in docs {
@@ -40,8 +39,8 @@ pub fn search_document(keyword: String) -> Vec<Document> {
 #[tauri::command]
 #[specta::specta]
 /// 根据试卷id获取试卷实体
-pub fn get_document(id: usize) -> Option<Document> {
-    let database = DATABASE.read().unwrap();
+pub async fn get_document(id: usize) -> Option<Document> {
+    let database = db().await.read().await;
     database.index.get(&id).map(|v| v.clone())
 }
 
@@ -49,19 +48,15 @@ pub fn get_document(id: usize) -> Option<Document> {
 #[specta::specta]
 /// 打开指定md5的文件
 /// 尽量不要传递试卷id，试卷id未必是试卷的唯一标识符
-pub fn open_document(md5: String) {
-    let mut cwd = CWD.clone();
-    cwd.push("data");
-    cwd.push("files");
-    cwd.push(format!("{}.pdf", md5));
-    let _ = open::that(cwd);
+pub async fn open_document(md5: String) {
+    let _ = open::that(Cwd::from_file().push(format!("{}.pdf", md5)).path());
 }
 
 #[tauri::command]
 #[specta::specta]
 /// 通过md5获取试卷实体
-pub fn get_document_by_md5(md5: String) -> Option<Document> {
-    let database = DATABASE.read().unwrap();
+pub async fn get_document_by_md5(md5: String) -> Option<Document> {
+    let database = db().await.read().await;
     database.data.get(md5.as_str()).map(|v| v.clone())
 }
 
@@ -71,7 +66,7 @@ pub fn get_document_by_md5(md5: String) -> Option<Document> {
 /// 返回打包后 pdf 的名称
 #[tauri::command]
 #[specta::specta]
-pub fn fetch_document(
+pub async fn fetch_document(
     handle: AppHandle,
     list: Vec<SelectedDocument>,
     double: bool,
@@ -80,27 +75,22 @@ pub fn fetch_document(
     let mut ok = 0;
     ProgressEvent(ok, list.len() as isize).emit(&handle)?;
     for item in &list {
-        touch_document(item.doc.md5.as_str())?;
+        touch_document(item.doc.md5.as_str()).await?;
         ok += 1;
         ProgressEvent(ok, list.len() as isize).emit(&handle)?;
     }
     ProgressEvent(-1, -1).emit(&handle)?;
-    let mut file_path = CWD.clone();
-    file_path.push("data");
-    file_path.push("files");
-    let mut font_path = CWD.clone();
-    font_path.push("font.ttf");
-    let mut tmp_path = CWD.clone();
-    tmp_path.push("data");
-    tmp_path.push("tmp");
+    let font_path = Cwd::from_root().push("font.ttf").path();
+    let tmp_path = Cwd::from_tmp().path();
     let mut input = format!("PACK\n{}\n{}\n", font_path.display(), tmp_path.display());
-    let config = CONFIG.read().map_err(|_| anyhow!("读取配置文件时出错！"))?;
+    let config = config().await.read().await;
     if !config.watermark {
         input.push_str("CLOSE_WATERMARK\n");
     }
     for item in list {
-        let mut target = file_path.clone();
-        target.push(format!("{}.pdf", item.doc.md5));
+        let target = Cwd::from_file()
+            .push(format!("{}.pdf", item.doc.md5))
+            .path();
         input.push_str(
             format!(
                 "{}\n{}\n{}\n{}\n{}\n{}\n",
@@ -119,27 +109,37 @@ pub fn fetch_document(
         );
     }
     input.push_str("END");
-    let mut pdf_app = CWD.clone();
-    pdf_app.push("bin");
-    pdf_app.push(config.pdf_tools.as_str());
+    {
+        let mut file = tokio::fs::File::create(Cwd::from_root().push("test.in").path())
+            .await
+            .map_err(|e| anyhow!("创建文件时出错：{}", e))?;
+        file.write_all(input.as_bytes())
+            .await
+            .map_err(|e| anyhow!("写入文件时出错：{}", e))?;
+    }
+    let pdf_app = Cwd::from_root()
+        .push("bin")
+        .push(config.pdf_tools.as_str())
+        .path();
     let mut child = Command::new(pdf_app)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .spawn()
-        .map_err(|_| anyhow!("启动pdf处理进程时失败！"))?;
+        .spawn()?;
     let mut stdin = child
         .stdin
         .take()
         .ok_or(anyhow!("获取pdf处理进程输入管道时错误！"))?;
-    writeln!(stdin, "{}", input)?;
+    stdin.write_all(input.as_bytes()).await?;
+    stdin.flush().await?;
+    stdin.shutdown().await?;
     drop(stdin);
     let stdout = child
         .stdout
         .as_mut()
         .ok_or(anyhow!("获取pdf处理进程输出管道时错误！"))?;
     let reader = BufReader::new(stdout);
-    for line in reader.lines() {
-        let line = line?;
+    let mut lines = reader.lines();
+    while let Some(line) = lines.next_line().await? {
         if line.starts_with("DONE ") {
             return Ok(line[5..].to_string());
         } else if line == "-1" {
@@ -149,7 +149,7 @@ pub fn fetch_document(
             ProgressEvent(progress[0].parse()?, progress[1].parse()?).emit(&handle)?;
         }
     }
-    let exit_status = child.wait()?;
+    let exit_status = child.wait().await?;
     Err(CommandError::from(anyhow!(
         "异常的退出状态：{:#?}",
         exit_status
@@ -159,35 +159,39 @@ pub fn fetch_document(
 /// 删除试卷
 #[tauri::command]
 #[specta::specta]
-pub fn delete_document(md5: String) -> Result<()> {
-    client_get::<Document>(format!("/document/delete?md5={}", md5).as_str())?;
-    update_database()?;
+pub async fn delete_document(md5: String) -> Result<()> {
+    request(Method::GET, format!("/document/delete?md5={}", md5), |o| o).await?;
+    update_database().await?;
     Ok(())
 }
 
 /// 更新试卷
 #[tauri::command]
 #[specta::specta]
-pub fn update_document(doc: Document) -> Result<()> {
-    let _unused: Document = client_post("/document/update", &doc)?;
-    update_database()?;
+pub async fn update_document(doc: Document) -> Result<()> {
+    request(Method::POST, "/document/update", |o| o.json(&doc)).await?;
+    update_database().await?;
     Ok(())
 }
 
 /// 试卷添加之后需要手动调用 update_database
 #[tauri::command]
 #[specta::specta]
-pub fn add_document(doc: Document) -> Result<()> {
+pub async fn add_document(doc: Document) -> Result<()> {
     // 检查是否提交了文件
-    if !client_get::<bool>(format!("/file/exists?md5={}", doc.md5).as_str())? {
-        // 提交文件
-        let mut file_path = CWD.clone();
-        file_path.push("data");
-        file_path.push("files");
-        file_path.push(format!("{}.pdf", doc.md5));
-        client_post_file("/file/upload", &file_path)?;
+    let handed: bool = request_json(Method::GET, format!("/file/exists?md5={}", doc.md5), |o| o)
+        .await?
+        .try_unwrap()?;
+    if !handed {
+        let file_part = multipart::Form::new()
+            .file(
+                "file",
+                Cwd::from_file().push(format!("{}.pdf", doc.md5)).path(),
+            )
+            .await?;
+        request(Method::POST, "/file/upload", |o| o.multipart(file_part)).await?;
     }
-    let _unused: Document = client_post("/document/add", &doc)?;
+    request(Method::POST, "/document/add", |o| o.json(&doc)).await?;
     Ok(())
 }
 
@@ -195,42 +199,22 @@ pub fn add_document(doc: Document) -> Result<()> {
 /// 如果不存在，则会从服务器上下载
 #[tauri::command]
 #[specta::specta]
-pub fn touch_document(md5: &str) -> Result<()> {
-    let mut file_path = CWD.clone();
-    file_path.push("data");
-    file_path.push("files");
-    file_path.push(format!("{}.pdf", md5));
+pub async fn touch_document(md5: &str) -> Result<()> {
+    let file_path = Cwd::from_file().push(format!("{}.pdf", md5)).path();
     if file_path.exists() {
         return Ok(());
     }
-    let config = CONFIG
-        .read()
-        .map_err(|e| anyhow!("获取配置信息时出错：{}", e))?;
-    let remote = config.remote.clone();
-    let token = config.token.clone();
-    drop(config);
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(token.as_str()).map_err(|e| anyhow!("token无效：{}", e))?,
-    );
-    let rep = CLIENT
-        .get(format!("{}/file/download?md5={}", remote, md5))
-        .headers(headers)
-        .send()
-        .map_err(|e| anyhow!("请求服务器时出错：{}", e))?;
-    if rep.status() != StatusCode::OK {
-        return Err(CommandError::from(anyhow!(
-            "请求服务器失败：{:?}",
-            rep.status()
-        )));
-    }
-    let data = rep
+
+    let resp = request(Method::GET, format!("/file/download?md5={}", md5), |o| o).await?;
+    let data = resp
         .bytes()
+        .await
         .map_err(|e| anyhow!("解析服务器返回时出错：{}", e))?;
-    let mut file =
-        std::fs::File::create(file_path).map_err(|e| anyhow!("创建文件时出错：{}", e))?;
+    let mut file = tokio::fs::File::create(file_path)
+        .await
+        .map_err(|e| anyhow!("创建文件时出错：{}", e))?;
     file.write_all(data.as_ref())
+        .await
         .map_err(|e| anyhow!("写入文件时出错：{}", e))?;
     Ok(())
 }

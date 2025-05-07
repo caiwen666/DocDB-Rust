@@ -10,7 +10,6 @@ export default function Index() {
 		};
 		usePageStore.subscribe((page) => {
 			if (page.now != 0) return;
-			console.log("aaa");
 			init();
 		});
 		init();

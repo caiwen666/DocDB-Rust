@@ -1,27 +1,21 @@
-use crate::config::{CWD, DATABASE};
+use crate::config::{config, db, Cwd};
 use crate::utils::result::{CommandError, Result};
 use anyhow::anyhow;
 use md5::{Digest, Md5};
 use src_shared::types::document::DocumentParseInfo;
 use src_shared::utils::file::compute_md5;
-use std::fs;
-use std::io::Write;
-use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{ExitStatus, Stdio};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::Command;
 
 /// 解析 pdf 信息
 #[tauri::command]
 #[specta::specta]
-pub fn parse_pdf(paths: Vec<String>) -> Result<Vec<DocumentParseInfo>> {
+pub async fn parse_pdf(paths: Vec<String>) -> Result<Vec<DocumentParseInfo>> {
     let mut res: Vec<DocumentParseInfo> = Vec::new();
     let mut input = String::from("PARSE\n");
-    let database = DATABASE
-        .read()
-        .map_err(|e| anyhow!("读取数据库失败 {}", e))?;
-    let mut file_path = CWD.clone();
-    file_path.push("data");
-    file_path.push("files");
+    let database = db().await.read().await;
 
     // 先把拖入文件缓存过来
     for path in paths {
@@ -37,9 +31,8 @@ pub fn parse_pdf(paths: Vec<String>) -> Result<Vec<DocumentParseInfo>> {
         if res.iter().find(|v| v.md5 == md5).is_some() {
             return Err(CommandError::from(anyhow!("{} 文件重复！", path)));
         }
-        let mut target = file_path.clone();
-        target.push(format!("{}.pdf", md5).as_str());
-        fs::copy(path.clone(), target.clone())?;
+        let target = Cwd::from_file().push(format!("{}.pdf", md5)).path();
+        tokio::fs::copy(path.clone(), target.clone()).await?;
         let target = target.display().to_string();
         input.push_str(target.as_str());
         input.push('\n');
@@ -51,30 +44,36 @@ pub fn parse_pdf(paths: Vec<String>) -> Result<Vec<DocumentParseInfo>> {
         })
     }
     input.push_str("END");
-    let mut pdf_app = CWD.clone();
-    pdf_app.push("bin");
-    pdf_app.push("app.exe");
+    let pdf_app = Cwd::from_root()
+        .push("bin")
+        .push(config().await.read().await.pdf_tools.as_str())
+        .path();
     let mut child = Command::new(pdf_app)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .spawn()
-        .map_err(|e| anyhow!("启动pdf处理进程时失败 {}", e))?;
+        .spawn()?;
     let mut stdin = child
         .stdin
         .take()
         .ok_or(anyhow!("获取pdf处理进程输入管道时错误！"))?;
-    writeln!(stdin, "{}", input)?;
+    stdin.write_all(input.as_bytes()).await?;
+    stdin.flush().await?;
+    stdin.shutdown().await?;
     drop(stdin);
-    let exit_status = child.wait()?;
-    if !exit_status.success() {
-        return Err(CommandError::from(anyhow!("解析 pdf 时失败！")));
+    let output = child.wait_with_output().await?;
+    if !output.status.success() {
+        return Err(CommandError::from(anyhow!(
+            "pdf 处理失败！\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
     }
-    let stdout = child.stdout.as_mut().unwrap();
-    let reader = BufReader::new(stdout);
-    for (index, line) in reader.lines().into_iter().enumerate() {
-        let line = line?;
-        res[index].page = line.parse()?;
+
+    let output = String::from_utf8_lossy(&output.stdout);
+
+    for (idx, line) in output.lines().into_iter().enumerate() {
+        res[idx].page = line.parse()?;
     }
+
     Ok(res)
 }
 

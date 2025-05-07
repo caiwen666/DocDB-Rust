@@ -117,12 +117,32 @@ async openTempDir() : Promise<void> {
 async setProgress(p: [number, number]) : Promise<void> {
     await TAURI_INVOKE("set_progress", { p });
 },
+async getWatermark() : Promise<boolean> {
+    return await TAURI_INVOKE("get_watermark");
+},
+async setWatermark(enable: boolean) : Promise<void> {
+    await TAURI_INVOKE("set_watermark", { enable });
+},
+async getServerInfo() : Promise<[string, string]> {
+    return await TAURI_INVOKE("get_server_info");
+},
+async setServerInfo(remote: string, token: string) : Promise<void> {
+    await TAURI_INVOKE("set_server_info", { remote, token });
+},
 /**
  * 更新数据库
  */
 async updateDatabase() : Promise<Result<boolean, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_database") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async hotCache() : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("hot_cache") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

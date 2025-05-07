@@ -77,7 +77,8 @@ function pack_command(commands: string[]) {
 		} else if (step == 5) {
 			now.id = Number(command);
 			step = 0;
-			list.push(now);
+			// 司马 nodejs，这里又传引用，需要深拷贝
+			list.push(clone(now));
 		}
 	}
 	pack().then((path) => {
@@ -233,3 +234,7 @@ async function parse() {
 		process.stdout.write(pdf.getPageCount() + "\n");
 	}
 }
+
+const clone = <T>(obj: T) => {
+	return JSON.parse(JSON.stringify(obj)) as T;
+};

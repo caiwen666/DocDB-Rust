@@ -37,7 +37,11 @@ const Index = () => {
 	const documentsRef = useRef<DocumentFromFile[]>([]);
 	// 用于判断表单是否通过了验证，key为表单对应文件的md5
 	const isValidRef = useRef<{ [key: string]: boolean | undefined }>({});
+	// tauri 拖入之后会触发两次事件，为了规避，我们做个特判
+	const lastDropRef = useRef("");
 	const handleDrop = async (all_paths: string[]) => {
+		if (all_paths.join(",") === lastDropRef.current) return;
+		lastDropRef.current = all_paths.join(",");
 		const paths = all_paths.filter((v) => v.endsWith(".pdf"));
 		if (paths.length === 0) return;
 		setLoading(true);

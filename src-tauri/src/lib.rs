@@ -12,7 +12,7 @@ use crate::event::ProgressEvent;
 use specta_typescript::BigIntExportBehavior;
 use specta_typescript::Typescript;
 use src_shared::types::bind_types;
-use std::thread;
+use tauri::async_runtime::TokioRuntime;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,7 +32,12 @@ pub fn run() {
             api::common::open_temp_file,
             api::common::open_temp_dir,
             api::ui::set_progress,
+            api::config::get_watermark,
+            api::config::set_watermark,
+            api::config::get_server_info,
+            api::config::set_server_info,
             database::update_database,
+            database::hot_cache,
         ])
         .events(collect_events![ProgressEvent]);
 
@@ -45,8 +50,6 @@ pub fn run() {
             "./src/bindings.ts",
         )
         .expect("Failed to export typescript bindings!");
-
-    thread::spawn(check_database_update);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -64,10 +67,19 @@ pub fn run() {
             api::common::open_temp_file,
             api::common::open_temp_dir,
             api::ui::set_progress,
+            api::config::get_watermark,
+            api::config::set_watermark,
+            api::config::get_server_info,
+            api::config::set_server_info,
             database::update_database,
+            database::hot_cache,
         ])
         .setup(move |app| {
             builder.mount_events(app);
+            std::thread::spawn(|| {
+                let rt = TokioRuntime::new().expect("Failed to create tokio runtime");
+                rt.block_on(check_database_update());
+            });
             Ok(())
         })
         .run(tauri::generate_context!())

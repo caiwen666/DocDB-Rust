@@ -5,12 +5,11 @@ import Home from "@/pages/home";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import Search from "../pages/search";
 import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
-// import Index from "./pages/Index";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-// import Index from "./pages/Index";
-// import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import Checked from "@/pages/checked";
 import Add from "@/pages/add";
+import Setting from "@/pages/setting/Setting";
 
 // import Setting from "./pages/Setting";
 
@@ -46,12 +45,12 @@ export const Pages: Page[] = [
 		icon: AddOutlinedIcon,
 		content: Add,
 	},
-	// {
-	// 	title: "设置",
-	// 	id: "setting",
-	// 	icon: SettingsOutlinedIcon,
-	// 	content: Setting,
-	// },
+	{
+		title: "设置",
+		id: "setting",
+		icon: SettingsOutlinedIcon,
+		content: Setting,
+	},
 ];
 
 export interface PageStore {

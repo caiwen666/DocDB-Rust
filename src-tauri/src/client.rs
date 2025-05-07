@@ -1,124 +1,98 @@
-use crate::config::CONFIG;
+use crate::config::config;
 use crate::utils::result::{CommandError, Result};
 use anyhow::anyhow;
-use reqwest::blocking::multipart;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use std::borrow::Cow;
 use std::fmt::Debug;
-use std::path::PathBuf;
-use std::sync::LazyLock;
-
-pub static CLIENT: LazyLock<reqwest::blocking::Client> = LazyLock::new(|| {
-    reqwest::blocking::ClientBuilder::new()
-        .danger_accept_invalid_certs(true)
-        .build()
-        .unwrap()
-});
+use tokio::sync::OnceCell;
 
 #[derive(Debug, Deserialize)]
-struct Response<T> {
+pub struct Response<T> {
     code: u16,
     data: Option<T>,
     msg: String,
 }
 
-pub fn client_get<T: for<'de> Deserialize<'de> + Debug>(url: &str) -> Result<T> {
-    let config = CONFIG
-        .read()
-        .map_err(|e| anyhow!("获取配置信息时出错：{}", e))?;
-    let remote = config.remote.clone();
-    let token = config.token.clone();
-    drop(config);
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(token.as_str()).map_err(|e| anyhow!("token无效：{}", e))?,
-    );
-    let rep = CLIENT
-        .get(format!("{}{}", remote, url))
-        .headers(headers)
-        .send()
-        .map_err(|e| anyhow!("请求服务器时出错：{}", e))?;
-    if rep.status() != StatusCode::OK {
-        return Err(CommandError::from(anyhow!(
-            "请求服务器失败：{:?}",
-            rep.status()
-        )));
+impl<T> Response<T> {
+    pub fn is_err(&self) -> bool {
+        self.code != 200
     }
-    let data: Response<T> = rep
-        .json()
-        .map_err(|e| anyhow!("解析服务器返回时出错：{}", e))?;
-    if data.code != 200 {
-        return Err(CommandError::from(anyhow!("请求服务器失败：{:?}", data)));
+    pub fn is_none(&self) -> bool {
+        self.data.is_none()
     }
-    Ok(data.data.unwrap())
+    pub fn try_unwrap(self) -> Result<T> {
+        if self.is_err() {
+            return Err(CommandError::from(anyhow!(
+                "请求服务器失败! Code: {}, Msg: {}",
+                self.code,
+                self.msg
+            )));
+        }
+        if self.is_none() {
+            return Err(CommandError::from(anyhow!(
+                "请求服务器失败，服务器返回数据为空!"
+            )));
+        }
+        Ok(self.data.unwrap())
+    }
 }
 
-pub fn client_post<I: Serialize, O: for<'de> Deserialize<'de> + Debug>(
-    url: &str,
-    input: &I,
-) -> Result<O> {
-    let config = CONFIG
-        .read()
-        .map_err(|e| anyhow!("获取配置信息时出错：{}", e))?;
-    let remote = config.remote.clone();
-    let token = config.token.clone();
-    drop(config);
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(token.as_str()).map_err(|e| anyhow!("token无效：{}", e))?,
-    );
-    let rep = CLIENT
-        .post(format!("{}{}", remote, url))
-        .headers(headers)
-        .json(input)
-        .send()
-        .map_err(|e| anyhow!("请求服务器时出错：{}", e))?;
-    if rep.status() != StatusCode::OK {
-        return Err(CommandError::from(anyhow!(
-            "请求服务器失败：{:?}",
-            rep.status()
-        )));
-    }
-    let data: Response<O> = rep
-        .json()
-        .map_err(|e| anyhow!("解析服务器返回时出错：{}", e))?;
-    if data.code != 200 {
-        return Err(CommandError::from(anyhow!("请求服务器失败：{:?}", data)));
-    }
-    Ok(data.data.unwrap())
+async fn get_instance() -> &'static reqwest::Client {
+    static INSTANCE: OnceCell<reqwest::Client> = OnceCell::const_new();
+    INSTANCE
+        .get_or_init(|| async {
+            let token = config().await.read().await.token.clone();
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(token.as_str()).unwrap(),
+            );
+            reqwest::Client::builder()
+                .default_headers(headers)
+                .build()
+                .unwrap()
+        })
+        .await
 }
 
-pub fn client_post_file(url: &str, path: &PathBuf) -> Result<()> {
-    let config = CONFIG
-        .read()
-        .map_err(|e| anyhow!("获取配置信息时出错：{}", e))?;
-    let remote = config.remote.clone();
-    let token = config.token.clone();
-    drop(config);
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(token.as_str()).map_err(|e| anyhow!("token无效：{}", e))?,
-    );
-    let file_part = multipart::Form::new().file("file", path)?;
-    let res = CLIENT
-        .post(format!("{}{}", remote, url))
-        .headers(headers)
-        .multipart(file_part)
+pub async fn request<'a>(
+    method: reqwest::Method,
+    url: impl Into<Cow<'a, str>>,
+    f: impl FnOnce(reqwest::RequestBuilder) -> reqwest::RequestBuilder,
+) -> Result<reqwest::Response> {
+    let remote = config().await.read().await.remote.clone();
+    let url: Cow<str> = url.into();
+    let client = get_instance()
+        .await
+        .request(method, format!("{}{}", remote, url));
+    let resp = f(client)
         .send()
+        .await
         .map_err(|e| anyhow!("请求服务器时出错：{}", e))?;
-    if res.status() != StatusCode::OK {
+    if resp.status() != StatusCode::OK {
         return Err(CommandError::from(anyhow!(
             "请求服务器失败：{:?}",
-            res.status()
+            resp.status()
         )));
     }
-    let data: Response<()> = res
-        .json()
+    Ok(resp)
+}
+
+pub async fn request_json<'a, T>(
+    method: reqwest::Method,
+    url: impl Into<Cow<'a, str>>,
+    f: impl FnOnce(reqwest::RequestBuilder) -> reqwest::RequestBuilder,
+) -> Result<Response<T>>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    let url: Cow<str> = url.into();
+    let resp = request(method, url, f).await?;
+    let data = resp
+        .json::<Response<T>>()
+        .await
         .map_err(|e| anyhow!("解析服务器返回时出错：{}", e))?;
-    if data.code != 200 {}
-    Ok(())
+    Ok(data)
 }

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::{
-        config::{CWD, DATABASE},
+        config::{db, Cwd},
         utils::result::Result,
     };
     use std::{
@@ -10,30 +10,24 @@ mod test {
         process::{Command, Stdio},
     };
 
-    #[test]
-    fn test_parse_pdf() -> Result<()> {
-        let mut cwd = CWD.clone();
-        cwd.push("data");
-        cwd.push("files");
+    #[tokio::test]
+    async fn test_parse_pdf() -> Result<()> {
         let mut input = String::from("PARSE\n");
         let mut expected = String::new();
-        let database = DATABASE.read().unwrap();
+        let database = db().await.read().await;
         for (md5, doc) in &database.data {
-            let mut target = cwd.clone();
-            target.push(format!("{}.pdf", md5));
+            let target = Cwd::from_file().push(format!("{}.pdf", md5)).path();
             input.push_str(format!("{}\n", target.as_path().display()).as_str());
             expected.push_str(format!("{}\n", doc.info.page).as_str());
         }
         input.push_str("END");
         {
-            let mut input_file = CWD.clone();
-            input_file.push("test.in");
+            let input_file = Cwd::from_root().push("test.in").path();
             let mut file = fs::File::create(input_file)?;
             file.write_all(input.as_bytes())?;
         }
-        let mut pdf_app = CWD.clone();
-        pdf_app.push("bin");
-        pdf_app.push("app.exe");
+        let pdf_app = Cwd::from_root().push("bin").push("pdf.exe").path();
+        // 下面懒得改异步了
         let mut child = Command::new(pdf_app)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
